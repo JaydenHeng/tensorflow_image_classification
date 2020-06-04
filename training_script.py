@@ -21,9 +21,6 @@ train_generator = None
 val_generator = None
 model = None
 
-# history_fine = model.fit(train_generator, epochs=10, validation_data=val_generator)
-
-
 def swish(x):
     return K.sigmoid(x) * x
 
@@ -63,24 +60,29 @@ def data_preparation():
 
 def start_training():
     global model
-    # Create the base model from the pre-trained model MobileNet V2
-    base_model = tf.keras.applications.MobileNetV2(input_shape=IMG_SHAPE,
-                                                   alpha=1.0,
-                                                   include_top=False,
-                                                   weights='imagenet')
-
-    base_model.trainable = False
 
     model = tf.keras.Sequential([
-        base_model,
-        # tf.keras.layers.Conv2D(128, 3, activation=swish), #Work Best
-        tf.keras.layers.Conv2D(128,
-                               kernel_size=(5, 5),
+        tf.keras.layers.Conv2D(16,
+                               kernel_size=(3, 3),  # (3, 3) means 3x3 kernal_size
                                padding='same',
-                               activation=swish),  # (5,5) means 5x5 kernal_size
+                               activation=swish,
+                               input_shape=IMG_SHAPE),
+        tf.keras.layers.MaxPooling2D(),
         tf.keras.layers.Dropout(0.2),
-        # tf.keras.layers.GlobalMaxPooling2D(),
-        tf.keras.layers.GlobalAveragePooling2D(),
+        tf.keras.layers.Conv2D(32,
+                               kernel_size=(3, 3),  # (3, 3) means 3x3 kernal_size
+                               padding='same',
+                               activation=swish),
+        tf.keras.layers.Dropout(0.2),
+        tf.keras.layers.MaxPooling2D(),
+        tf.keras.layers.Conv2D(64,
+                               kernel_size=(3, 3),  # (3, 3) means 3x3 kernal_size
+                               padding='same',
+                               activation=swish),
+        tf.keras.layers.Dropout(0.2),
+        tf.keras.layers.MaxPooling2D(),
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(512, activation=swish),
         tf.keras.layers.Dense(2, activation='softmax')
     ])
 
@@ -115,25 +117,13 @@ def start_training():
               validation_data=val_generator,
               callbacks=[tensorboard_callback, earlystopping_callback])
 
-    base_model.trainable = True
+    # model.compile(loss='binary_crossentropy', optimizer=tf.keras.optimizers.Adam(1e-5), metrics=['accuracy'])
 
-    # Let's take a look to see how many layers are in the base model
-    print("Number of layers in the base model: ", len(base_model.layers))
+    # model.summary()
 
-    # Fine tune from this layer onwards
-    fine_tune_at = 100
-
-    # Freeze all the layers before the `fine_tune_at` layer
-    for layer in base_model.layers[:fine_tune_at]:
-        layer.trainable = False
-
-    model.compile(loss='binary_crossentropy', optimizer=tf.keras.optimizers.Adam(1e-5), metrics=['accuracy'])
-
-    model.summary()
-
-    print('Number of trainable variables = {}'.format(len(model.trainable_variables)))
-    print(train_generator)
-    print(val_generator)
+    # print('Number of trainable variables = {}'.format(len(model.trainable_variables)))
+    # print(train_generator)
+    # print(val_generator)
 
 
 def save_model():
